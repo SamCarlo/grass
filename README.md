@@ -204,8 +204,25 @@ Head steering failing never takes the game with it: every path falls back to key
 ```
 index.html   the whole game — three.js r128 inlined, no build step
 serve.py     static server on :1268, only there to make the origin secure
+LICENSE      MIT
 ```
 
 Inside `index.html`, in document order: the game's markup, three.js, a WebGL probe, the
 head tracker (`window.KineticHead`), then the game itself. The tracker is a standalone
 IIFE that the game only ever polls — it never awaits it, and every read is guarded.
+
+## License
+
+MIT — see `LICENSE`. Fork it, gut it, ship it.
+
+Two third-party pieces come with their own terms, neither of them changed by that:
+
+- **three.js r128**, MIT, inlined into `index.html` as a single minified line. Its licence
+  header sits at the top of that bundle and needs to stay there. Do not reformat the line —
+  it makes every diff of this file useless.
+- **MediaPipe Tasks-Vision**, Apache-2.0, fetched from jsDelivr at runtime along with the
+  face-landmarker weights. Nothing from it is vendored here, so a fork inherits no
+  obligations beyond Apache-2.0 if you choose to redistribute it yourself.
+
+No analytics, no telemetry, no network calls beyond the MediaPipe CDN and the Google Fonts
+stylesheet. The webcam frames are read into the tracker and never leave the page.
