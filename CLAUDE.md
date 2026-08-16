@@ -4,7 +4,7 @@ Guidance for Claude Code when working in `games/kinetic/`.
 
 ## What this is
 
-The `kinetic` branch of the grass repo (`github.com/SamCarlo/grass`, private). It is
+The `kinetic` branch of the grass repo (`github.com/SamCarlo/grass`, public). It is
 `touch-grass.html` from `main` — the same endless grass survey — with webcam head tracking
 added as a second controller. All original keyboard/mouse/touch controls are preserved
 unchanged; head steering is purely additive.
