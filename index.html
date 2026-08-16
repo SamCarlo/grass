@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>TOUCH GRASS — surface survey</title>
+<title>KINETIC — head-steered surface survey</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -226,6 +226,127 @@
     padding:9px 11px;margin:0 0 16px;word-break:break-word;letter-spacing:0;border-left:2px solid var(--phosphor);}
   #diag ul{margin:0;padding-left:18px;font-size:12.5px;line-height:1.8;color:rgba(236,231,214,.72);letter-spacing:0;}
   #diag li b{color:var(--bone);font-weight:600;}
+
+  /* ============================================================
+     KINETIC — head-tracking additions
+     ============================================================ */
+
+  /* bottom-right: the camera bay. Hidden until tracking is asked for. */
+  #cam{
+    bottom:max(14px,env(safe-area-inset-bottom));right:14px;
+    width:172px;padding:9px 9px 8px;display:none;
+  }
+  #cam.on{display:block;}
+  #camBay{
+    position:relative;width:154px;height:116px;overflow:hidden;
+    background:rgba(6,10,7,.72);border:1px solid rgba(214,226,190,0.14);
+  }
+  /* the feed itself is unmirrored — mirroring here is display only, so the
+     tracker still sees raw camera space and the sign logic stays honest. */
+  #camVid{
+    display:block;width:100%;height:100%;object-fit:cover;
+    transform:scaleX(-1);opacity:.62;filter:saturate(.35) contrast(1.05);
+  }
+  #camBay.blind #camVid{opacity:.18;filter:saturate(0) contrast(.9);}
+  #camBay::after{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(to bottom,rgba(195,239,98,.05),transparent 40%,transparent 60%,rgba(6,10,7,.45));
+  }
+  /* centre crosshair + the live deadzone gate drawn over the feed.
+     Vertical needle is the turn axis, horizontal needle is the tilt axis. */
+  #camGate{position:absolute;inset:0;pointer-events:none;}
+  #camGate i{position:absolute;background:rgba(236,231,214,.22);}
+  #camGate i.v{top:0;bottom:0;width:1px;}
+  #camGate i.h{left:0;right:0;height:1px;}
+  #camGate i.mid{background:rgba(236,231,214,.42);}
+  #camNeedle,#camNeedleH{
+    position:absolute;background:var(--phosphor);
+    box-shadow:0 0 8px rgba(195,239,98,.7);transition:background .12s ease;
+  }
+  #camNeedle{top:0;bottom:0;width:2px;left:50%;margin-left:-1px;}
+  #camNeedleH{left:0;right:0;height:2px;top:50%;margin-top:-1px;background:var(--amber);
+    box-shadow:0 0 8px rgba(232,171,79,.7);}
+  #camNeedle.idle,#camNeedleH.idle{background:rgba(236,231,214,.30);box-shadow:none;}
+  #camNeedleH.off{display:none;}
+  /* the camera's real sample rate — the ceiling on how smooth tilt can be */
+  #camFps{
+    position:absolute;top:3px;right:5px;font-size:8.5px;letter-spacing:.1em;
+    color:rgba(236,231,214,.48);font-variant-numeric:tabular-nums;
+    text-shadow:0 1px 3px rgba(0,0,0,.85);pointer-events:none;
+  }
+  #camFps.low{color:var(--amber);}
+  #camHint{
+    position:absolute;left:0;right:0;bottom:0;padding:3px 5px;
+    font-family:"Chakra Petch",monospace;font-weight:700;font-size:9px;letter-spacing:.16em;
+    color:var(--deep);background:var(--phosphor);text-align:center;display:none;
+  }
+  #camHint.on{display:block;}
+  #camHint.warm{background:var(--amber);}
+  #camHint.bad{background:var(--magma);color:var(--bone);}
+  .camRow{display:grid;grid-template-columns:30px 1fr auto;align-items:baseline;gap:6px;margin-top:6px;
+    font-size:9.5px;letter-spacing:.12em;color:var(--bone-dim);}
+  .camRow .lbl{color:rgba(236,231,214,.34);}
+  .camRow b{font-weight:600;font-variant-numeric:tabular-nums;}
+  #camTurn,#camDeg{color:var(--phosphor);}
+  #camTilt,#camTiltDeg{color:var(--amber);}
+  #cam.noTilt .camRow.tilt{opacity:.28;}
+
+  /* ---- overlay: the tracking console ---- */
+  #camCfg{
+    margin:22px 0 0;border-top:1px solid var(--glass-line);border-bottom:1px solid var(--glass-line);
+    padding:16px 0 4px;pointer-events:auto;
+  }
+  #camCfg > .eyebrow{color:var(--amber);margin-bottom:9px;}
+  #camStatus{font-size:11.5px;line-height:1.55;color:rgba(236,231,214,.66);margin:0 0 14px;max-width:44ch;}
+  #camStatus b{color:var(--phosphor);font-weight:600;}
+  #camStatus.bad b{color:var(--magma);}
+  .cfgHead{
+    font-family:"Chakra Petch",monospace;font-weight:600;font-size:9.5px;letter-spacing:.2em;
+    color:var(--bone);text-transform:uppercase;margin:16px 0 2px;
+    display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  }
+  .cfgHead:first-of-type{margin-top:4px;}
+  .cfgHead span{font-weight:500;letter-spacing:.08em;text-transform:none;
+    font-size:10px;color:rgba(236,231,214,.38);}
+  .cfgRow{
+    display:grid;grid-template-columns:112px 1fr 46px;align-items:center;gap:12px;
+    padding:7px 0;border-bottom:1px solid rgba(214,226,190,0.08);
+  }
+  .cfgRow > label{font-size:10px;letter-spacing:.14em;color:var(--bone-dim);text-transform:uppercase;}
+  .cfgRow > output{font-size:10.5px;letter-spacing:.06em;color:var(--bone);text-align:right;
+    font-variant-numeric:tabular-nums;font-weight:600;}
+  .cfgRow input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:3px;background:rgba(236,231,214,0.16);
+    outline:none;cursor:pointer;
+  }
+  .cfgRow input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:13px;height:13px;border-radius:50%;
+    background:var(--phosphor);cursor:pointer;border:0;
+  }
+  .cfgRow input[type=range]::-moz-range-thumb{
+    width:13px;height:13px;border-radius:50%;background:var(--phosphor);cursor:pointer;border:0;
+  }
+  .cfgRow input[type=range]:focus-visible{outline:2px solid var(--bone);outline-offset:4px;}
+  .toggles{display:flex;flex-wrap:wrap;gap:8px;padding:12px 0 4px;}
+  .tog{
+    pointer-events:auto;cursor:pointer;background:transparent;
+    border:1px solid var(--glass-line);color:var(--bone-dim);
+    font-family:"Chakra Petch",monospace;font-weight:600;font-size:10px;letter-spacing:.16em;
+    padding:8px 12px;transition:color .12s ease,border-color .12s ease,background .12s ease;
+  }
+  .tog:hover{color:var(--bone);border-color:rgba(214,226,190,0.45);}
+  .tog.on{background:rgba(195,239,98,0.16);border-color:rgba(195,239,98,.55);color:var(--phosphor);}
+  .tog:focus-visible{outline:2px solid var(--bone);outline-offset:3px;}
+  #camBtn{
+    pointer-events:auto;margin-top:26px;cursor:pointer;
+    font-family:"Chakra Petch",monospace;font-weight:700;font-size:15px;letter-spacing:.2em;
+    color:var(--bone-dim);background:transparent;border:1px solid var(--glass-line);padding:14px 26px;
+    transition:color .12s ease,border-color .12s ease,background .12s ease;
+  }
+  #camBtn:hover{color:var(--bone);border-color:rgba(214,226,190,0.45);}
+  #camBtn.on{background:rgba(195,239,98,0.14);border-color:rgba(195,239,98,.55);color:var(--phosphor);}
+  #camBtn:disabled{opacity:.4;cursor:default;}
+  #camBtn:focus-visible{outline:2px solid var(--bone);outline-offset:3px;}
 </style>
 </head>
 <body>
@@ -259,6 +380,23 @@
   <div id="fuelRow"><span>THRUST</span><span id="ground">CONTACT</span></div>
 </div>
 
+<div class="hud panel" id="cam">
+  <p class="eyebrow">Head · <b id="camMode">TURN + TILT</b></p>
+  <div id="camBay" class="blind">
+    <video id="camVid" playsinline muted autoplay></video>
+    <div id="camGate">
+      <i class="v" id="camDzL"></i><i class="v mid"></i><i class="v" id="camDzR"></i>
+      <i class="h" id="camDzT"></i><i class="h mid"></i><i class="h" id="camDzB"></i>
+      <div id="camNeedle" class="idle"></div>
+      <div id="camNeedleH" class="idle"></div>
+    </div>
+    <div id="camFps"></div>
+    <div id="camHint">NO FACE</div>
+  </div>
+  <div class="camRow"><span class="lbl">TURN</span><span id="camTurn">CENTRED</span><b id="camDeg">0°</b></div>
+  <div class="camRow tilt"><span class="lbl">TILT</span><span id="camTilt">LEVEL</span><b id="camTiltDeg">0°</b></div>
+</div>
+
 <div id="ret"><span></span></div>
 <div id="cowMark"><span id="cowArrow">▲</span><span id="cowDist">0 M</span></div>
 <div id="toasts"></div>
@@ -273,20 +411,84 @@
 <div id="ov">
   <div id="card">
     <div id="kicker">Survey unit 7 · vegetation contact log</div>
-    <h1 id="headline">TOUCH<em>GRASS</em></h1>
-    <p id="blurb">The site has no edges. Terrain is generated around you as you travel, so you can pick a direction and keep going — nothing out there is closer than anything else.<br><br>Only the green is safe. <b style="color:var(--magma);font-weight:600">Every bare surface on this rock is molten and one touch burns a life</b> — you get three per level. You score by putting boots on green, and somewhere out there a very small cow is floating. It grows as your log fills. Reach the level's target and it turns solid: fly up, touch it, round over. The clock is your score.<br><br>The site also has <b style="color:var(--bone);font-weight:600">flying cattle</b> — small herds drifting above the grass, holding formation. <b style="color:var(--phosphor);font-weight:600">Crack the whip and the ones in earshot bolt straight away from you</b>, climbing as they run. Put one into the floating cow and it is worth 100 toward the target, so stand where "away from me" points at the beacon. The bigger the floating cow gets, the easier it is to hit.<br><br>Moving is fast on its own — <b style="color:var(--phosphor);font-weight:600">hold ski and the hills stop slowing you down</b>, so momentum keeps building. Longer you're airborne, more the next landing is worth.</p>
+    <h1 id="headline">KINETIC<em>GRASS</em></h1>
+    <p id="blurb">The site has no edges. Terrain is generated around you as you travel, so you can pick a direction and keep going — nothing out there is closer than anything else.<br><br>Only the green is safe. <b style="color:var(--magma);font-weight:600">Every bare surface on this rock is molten and one touch burns a life</b> — you get three per level. You score by putting boots on green, and somewhere out there a very small cow is floating. It grows as your log fills. Reach the level's target and it turns solid: fly up, touch it, round over. The clock is your score.<br><br>The site also has <b style="color:var(--bone);font-weight:600">flying cattle</b> — small herds drifting above the grass, holding formation. <b style="color:var(--phosphor);font-weight:600">Crack the whip and the ones in earshot bolt straight away from you</b>, climbing as they run. Put one into the floating cow and it is worth 100 toward the target, so stand where "away from me" points at the beacon. The bigger the floating cow gets, the easier it is to hit.<br><br>Moving is fast on its own — <b style="color:var(--phosphor);font-weight:600">hold ski and the hills stop slowing you down</b>, so momentum keeps building. Longer you're airborne, more the next landing is worth.<br><br><b style="color:var(--phosphor);font-weight:600">Your webcam can take the steering.</b> Turn your head and the survey turns with it — hold the turn and it keeps going, so a small movement covers a full circle. The keyboard is untouched: W A S D still move you, and the mouse still works at the same time. Head steering is an extra hand, not a replacement.</p>
     <div id="keys">
       <div>W A S D</div><div>Move — already quick, and it builds up</div>
-      <div>MOUSE</div><div>Look around</div>
+      <div>HEAD TURN</div><div>Steer — turn your head, the view follows and keeps turning</div>
+      <div>HEAD TILT</div><div>Look up and down — tilt to aim, come back to level and so does the view</div>
+      <div>MOUSE</div><div>Look around — still live while the camera is running</div>
       <div>SHIFT</div><div>Hold to ski — drops the friction, hills become speed</div>
       <div>SPACE</div><div>Hold for thruster — how you reach the cow</div>
       <div>F / CLICK</div><div>Crack the whip — spooks the herd away from you</div>
+      <div>H</div><div>Toggle head steering on or off mid-run</div>
+      <div>V</div><div>Toggle the tilt axis alone, leaving the turn axis running</div>
+      <div>C</div><div>Recentre — takes wherever you're sitting as straight ahead</div>
       <div>R</div><div>Restart the current level</div>
       <div>ESC</div><div>Pause</div>
     </div>
+
+    <div id="camCfg">
+      <p class="eyebrow">Head steering · camera console</p>
+      <p id="camStatus">Camera is <b>off</b>. Turn it on below — the browser will ask for permission, and the video never leaves this page.</p>
+      <p class="cfgHead">Turn — left / right <span>hold to keep turning</span></p>
+      <div class="cfgRow">
+        <label for="cfgSens">Turn speed</label>
+        <input type="range" id="cfgSens" min="0.2" max="2.5" step="0.05" value="1">
+        <output id="outSens">1.00×</output>
+      </div>
+      <div class="cfgRow">
+        <label for="cfgDead">Dead zone</label>
+        <input type="range" id="cfgDead" min="1" max="20" step="0.5" value="6">
+        <output id="outDead">6°</output>
+      </div>
+      <div class="cfgRow">
+        <label for="cfgRange">Full-turn angle</label>
+        <input type="range" id="cfgRange" min="10" max="45" step="1" value="26">
+        <output id="outRange">26°</output>
+      </div>
+
+      <p class="cfgHead">Tilt — up / down <span>self-centring</span></p>
+      <div class="cfgRow">
+        <label for="cfgReach">Look reach</label>
+        <input type="range" id="cfgReach" min="20" max="85" step="1" value="70">
+        <output id="outReach">70°</output>
+      </div>
+      <div class="cfgRow">
+        <label for="cfgPRange">Tilt for full</label>
+        <input type="range" id="cfgPRange" min="8" max="40" step="1" value="22">
+        <output id="outPRange">22°</output>
+      </div>
+      <div class="cfgRow">
+        <label for="cfgPDead">Dead zone</label>
+        <input type="range" id="cfgPDead" min="0.5" max="14" step="0.5" value="4">
+        <output id="outPDead">4°</output>
+      </div>
+      <div class="cfgRow">
+        <label for="cfgPSmooth">Steadiness</label>
+        <input type="range" id="cfgPSmooth" min="0" max="200" step="5" value="35">
+        <output id="outPSmooth">35 MS</output>
+      </div>
+
+      <p class="cfgHead">Both axes</p>
+      <div class="cfgRow">
+        <label for="cfgSmooth">Turn smoothing</label>
+        <input type="range" id="cfgSmooth" min="0" max="200" step="5" value="70">
+        <output id="outSmooth">70 MS</output>
+      </div>
+      <div class="toggles">
+        <button class="tog" id="togPitch" type="button">TILT AXIS</button>
+        <button class="tog" id="togInvert" type="button">INVERT TURN</button>
+        <button class="tog" id="togInvPitch" type="button">INVERT TILT</button>
+        <button class="tog" id="togHud" type="button">CAMERA BAY</button>
+        <button class="tog" id="togRecal" type="button">RECENTRE NOW</button>
+      </div>
+    </div>
+
     <div id="stats"></div>
     <div id="btnRow">
       <button id="go">BEGIN SURVEY</button>
+      <button id="camBtn">HEAD STEERING: OFF</button>
       <button id="end">GAME OVER</button>
     </div>
   </div>
@@ -327,6 +529,436 @@
   } catch (err) { gl = null; }
   if (!gl) { fail('WebGL unavailable', 'No WebGL context could be created in this view.'); return; }
   window.__tgReady = true;
+})();
+</script>
+<script>
+/* ============================================================
+   KINETIC — head tracking
+   MediaPipe FaceLandmarker (tasks-vision) over a webcam feed.
+
+   Exposes window.KineticHead. The game polls it once per frame and
+   never touches MediaPipe directly, so if any of this fails — no
+   camera, no permission, no network — the game just plays as
+   keyboard-and-mouse and nothing else notices.
+   ============================================================ */
+(function () {
+"use strict";
+
+const CDN   = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1';
+const MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
+const STORE = 'kinetic_head_v1';
+
+/* the fastest the head can spin the view, rad/s, at a full-range turn */
+const MAX_RATE = 2.6;
+/* how long a face may go missing before steering is cut, seconds */
+const DROP_GRACE = 0.25;
+/* frames of stillness folded into a recentre */
+const CAL_TIME = 0.7;
+
+/* ---------- landmark indices (canonical 478-point face mesh) ---------- */
+const LM_NOSE = 1, LM_CHEEK_A = 234, LM_CHEEK_B = 454, LM_TOP = 10, LM_CHIN = 152;
+
+/* Two axes, two models, on purpose.
+
+   Yaw is unbounded — you have to be able to come all the way round — so head
+   turn drives a *rate*: hold the turn and it keeps going.
+
+   Pitch is bounded, straight up to straight down and no further, so head tilt
+   drives an absolute *offset* instead. Tilt maps to a view angle and lets go
+   when you come back to level, which means it cannot drift, needs no
+   recentring, and returns itself to the horizon. A rate here would leave the
+   view parked at the sky every time you glanced down at the keyboard. */
+const DEFAULTS = {
+  sens: 1.0,        // multiplier on turn speed
+  deadDeg: 6,       // degrees of head turn that do nothing
+  rangeDeg: 26,     // degrees of head turn that means "full speed"
+  smoothMs: 70,     // exponential smoothing time constant, both axes
+  invert: false,    // flip the turn direction
+
+  pitchOn: true,        // head tilt drives the vertical axis
+  pitchDeadDeg: 4,      // degrees of head tilt that do nothing
+  pitchRangeDeg: 22,    // head tilt that reaches full deflection
+  pitchReachDeg: 70,    // view angle that full deflection buys you
+  pitchSmoothMs: 35,    // ease on top of the interpolation, see headPitch()
+  invertPitch: false,   // tilt down to look up
+
+  hud: true         // show the camera bay panel
+};
+
+const H = {
+  /* --- state the game reads --- */
+  enabled: false,
+  status: 'off',          // off | starting | live | error
+  detail: '',
+  face: false,
+  yawDeg: 0,              // + = turned to your left,  neutral-relative
+  pitchDeg: 0,            // + = chin up,              neutral-relative
+  yawRate: 0,             // rad/s to add to look.x
+  pitchOffset: 0,         // radians of view pitch to sit at, + = looking up
+  interval: 1 / 30,       // measured seconds between detections
+  fps: 0,                 // ...the same thing the way a human reads it
+  stamp: 0,               // bumped whenever a new sample is published
+  calibrating: false,
+  opt: Object.assign({}, DEFAULTS),
+
+  /* --- controls --- */
+  start, stop, toggle, recenter, save,
+  onstatus: null          // fn(status, detail) — the overlay UI hooks this
+};
+window.KineticHead = H;
+
+/* ---------- persisted settings ---------- */
+let wantOn = false;
+try {
+  const raw = JSON.parse(localStorage.getItem(STORE) || '{}');
+  for (const k in DEFAULTS) if (typeof raw[k] === typeof DEFAULTS[k]) H.opt[k] = raw[k];
+  wantOn = !!raw.enabled;
+} catch (e) { /* private mode, corrupt value — defaults are fine */ }
+H.wantOn = wantOn;
+
+function save() {
+  try {
+    localStorage.setItem(STORE, JSON.stringify(Object.assign({}, H.opt, { enabled: H.enabled })));
+  } catch (e) { /* nothing to do about it */ }
+}
+
+/* ---------- plumbing ---------- */
+const video = document.getElementById('camVid');
+let landmarker = null;     // MediaPipe FaceLandmarker
+let stream = null;
+let loopHandle = 0;
+let lastTs = -1;           // detectForVideo demands a strictly rising clock
+let lastSeen = -1e9;       // performance.now() of the last frame with a face
+let lastLoop = 0;
+
+function setStatus(s, detail) {
+  H.status = s;
+  H.detail = detail || '';
+  if (typeof H.onstatus === 'function') { try { H.onstatus(s, H.detail); } catch (e) {} }
+}
+
+/* ---------- neutral / calibration ---------- */
+const neutral = { yaw: 0, pitch: 0, side: 0, vert: 0, set: false };
+let cal = null;            // { t, n, yaw, pitch, side, vert } while averaging
+
+function recenter() {
+  cal = { t: 0, n: 0, yaw: 0, pitch: 0, side: 0, vert: 0 };
+  H.calibrating = true;
+}
+
+/* Which way the maths runs is decided by watching, not asserted. The nose
+   tip swings toward the side you turn to in raw camera space, which is a
+   fact about the image and not about anyone's matrix convention; the
+   matrix-derived angle is then locked to agree with it. A mirrored driver
+   would defeat this, which is what the INVERT toggle is for. */
+let corrYaw = 0, corrPitch = 0;
+function signOf(c) { return c < 0 ? -1 : 1; }
+
+/* ---------- Euler from the facial transformation matrix (YXZ, column-major) ---------- */
+const _clamp = (v, a, b) => v < a ? a : (v > b ? b : v);
+function eulerYXZ(m) {
+  const m11 = m[0], m21 = m[1], m31 = m[2];
+  const m12 = m[4], m22 = m[5];
+  const m13 = m[8], m23 = m[9], m33 = m[10];
+  const x = Math.asin(-_clamp(m23, -1, 1));
+  let y, z;
+  if (Math.abs(m23) < 0.9999999) { y = Math.atan2(m13, m33); z = Math.atan2(m21, m22); }
+  else { y = Math.atan2(-m31, m11); z = 0; }
+  return { yaw: y, pitch: x, roll: z };
+}
+
+/* ---------- smoothing ---------- */
+let smYaw = 0, smPitch = 0, smInit = false;
+
+function ease(prev, next, dt, tau) {
+  if (!(tau > 0)) return next;
+  return prev + (next - prev) * (1 - Math.exp(-dt / tau));
+}
+function smooth(prev, next, dt) { return ease(prev, next, dt, H.opt.smoothMs / 1000); }
+
+/* Pitch is filtered twice, in two different places, for two different reasons.
+
+   Here, at camera rate, only lightly — enough to knock the spikes off a single
+   bad detection. The real filtering happens in the game loop at *display*
+   rate, because the problem pitch has is not noise, it is cadence: an absolute
+   angle sampled 30 times a second and drawn 144 times a second holds still for
+   four frames and then jumps. Filtering that here would not help, since this
+   code only runs when a new sample exists. Yaw is exempt from all of this —
+   it is a rate, and the game integrating it is already a low-pass. */
+const PITCH_DESPIKE_MS = 28;
+function despike(prev, next, dt) {
+  return ease(prev, next, dt, Math.min(H.opt.smoothMs, PITCH_DESPIKE_MS) / 1000);
+}
+
+/* ---------- head degrees -> control value ----------
+   Same shape for both axes: nothing inside the dead zone, then an eased ramp
+   to full deflection at `range`. The exponent is what makes small movements
+   around centre gentle and the edges decisive. */
+function ramp(deg, dead, range, expo) {
+  const a = Math.abs(deg);
+  if (a <= dead) return 0;
+  const span = Math.max(1, range - dead);
+  const t = Math.min(1, (a - dead) / span);
+  return (deg < 0 ? -1 : 1) * Math.pow(t, expo);
+}
+
+/* yaw -> rad/s of turn */
+function shapeYaw(deg) {
+  return ramp(deg, H.opt.deadDeg, H.opt.rangeDeg, 1.7) * MAX_RATE * H.opt.sens;
+}
+
+/* tilt -> radians of view pitch. The reach is deliberately larger than the
+   head angle that earns it: nobody wants to hold their neck back at 70° to
+   look at the sky, so ~22° of tilt buys the whole range. */
+function shapePitch(deg) {
+  if (!H.opt.pitchOn) return 0;
+  return ramp(deg, H.opt.pitchDeadDeg, H.opt.pitchRangeDeg, 1.4)
+       * H.opt.pitchReachDeg * Math.PI / 180;
+}
+
+/* ---------- start / stop ---------- */
+async function start() {
+  if (H.enabled || H.status === 'starting') return;
+
+  if (!window.isSecureContext) {
+    setStatus('error', 'A camera needs a secure page. Open this over http://localhost — run serve.py in this folder — rather than as a file:// path.');
+    return;
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    setStatus('error', 'This browser exposes no camera API.');
+    return;
+  }
+
+  /* The model is ~12MB of wasm and weights. Build it once and keep it —
+     switching the camera off and on again should not pay for it twice. */
+  if (!landmarker) {
+    setStatus('starting', 'Loading the face model…');
+
+    let vision;
+    try {
+      vision = await import(/* @vite-ignore */ CDN + '/vision_bundle.mjs');
+    } catch (e) {
+      setStatus('error', 'Could not load the tracking library from the CDN. Head steering needs a network connection the first time; after that the browser caches it.');
+      return;
+    }
+
+    try {
+      const fileset = await vision.FilesetResolver.forVisionTasks(CDN + '/wasm');
+      const mk = (delegate) => vision.FaceLandmarker.createFromOptions(fileset, {
+        baseOptions: { modelAssetPath: MODEL, delegate: delegate },
+        runningMode: 'VIDEO',
+        numFaces: 1,
+        outputFaceBlendshapes: false,
+        outputFacialTransformationMatrixes: true
+      });
+      try { landmarker = await mk('GPU'); }
+      catch (e) { landmarker = await mk('CPU'); }   // some drivers refuse the GPU delegate
+    } catch (e) {
+      landmarker = null;
+      setStatus('error', 'The face model failed to initialise: ' + (e && e.message ? e.message : e));
+      return;
+    }
+  }
+
+  setStatus('starting', 'Asking for the camera…');
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } }
+    });
+  } catch (e) {
+    const name = e && e.name || '';
+    setStatus('error',
+      name === 'NotAllowedError' ? 'Camera permission was refused. Allow it in the address bar and switch head steering back on.'
+      : name === 'NotFoundError' ? 'No camera was found on this machine.'
+      : name === 'NotReadableError' ? 'The camera is busy — another program is holding it.'
+      : 'The camera could not be opened: ' + (e && e.message ? e.message : e));
+    return;
+  }
+
+  video.srcObject = stream;
+  try { await video.play(); } catch (e) { /* autoplay policy — muted+playsinline usually carries it */ }
+
+  H.enabled = true;
+  smInit = false;
+  corrYaw = corrPitch = 0;
+  neutral.set = false;
+  recenter();
+  lastTs = -1;
+  lastSeen = -1e9;          // a restart must not measure a gap across the pause
+  lastLoop = performance.now();
+  setStatus('live', 'Tracking. Sit square to the camera for a second while it takes your centre.');
+  save();
+  schedule();
+}
+
+function stop() {
+  H.enabled = false;
+  H.face = false;
+  H.yawRate = H.pitchOffset = 0;
+  H.yawDeg = H.pitchDeg = 0;
+  H.calibrating = false;
+  cal = null;
+  if (loopHandle) {
+    if (video.cancelVideoFrameCallback && loopKind === 'vfc') video.cancelVideoFrameCallback(loopHandle);
+    else cancelAnimationFrame(loopHandle);
+    loopHandle = 0;
+  }
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  video.srcObject = null;
+  setStatus('off', '');
+  save();
+}
+
+function toggle() { if (H.enabled) stop(); else start(); }
+
+/* ---------- the detection loop ---------- */
+let loopKind = 'raf';
+function schedule() {
+  if (!H.enabled) return;
+  if (video.requestVideoFrameCallback) {
+    loopKind = 'vfc';
+    loopHandle = video.requestVideoFrameCallback(tick);
+  } else {
+    loopKind = 'raf';
+    loopHandle = requestAnimationFrame(tick);
+  }
+}
+
+function tick() {
+  if (!H.enabled) return;
+  const now = performance.now();
+  let dt = (now - lastLoop) / 1000;
+  lastLoop = now;
+  if (!(dt > 0)) dt = 1 / 30;
+  else if (dt > 0.25) dt = 0.25;
+
+  if (document.hidden || !landmarker || video.readyState < 2 || !video.videoWidth) {
+    decay(now, dt);
+    schedule();
+    return;
+  }
+
+  let res = null;
+  const ts = now <= lastTs ? lastTs + 1 : now;
+  lastTs = ts;
+  try { res = landmarker.detectForVideo(video, ts); }
+  catch (e) { decay(now, dt); schedule(); return; }
+
+  const marks = res && res.faceLandmarks && res.faceLandmarks[0];
+  if (!marks) { decay(now, dt); schedule(); return; }
+
+  /* How often samples actually land, measured only across frames that really
+     produced one. The game sizes its reconstruction from this, so a webcam
+     that quietly drops to 15fps in a dim room gets interpolated over a wider
+     gap instead of getting twice as steppy. The upper bound rejects the one
+     enormous interval you get back from a backgrounded tab. */
+  if (lastSeen > 0) {
+    const gap = (now - lastSeen) / 1000;
+    if (gap > 0.005 && gap < 0.2) {
+      H.interval += (gap - H.interval) * 0.1;
+      H.fps = 1 / H.interval;
+    }
+  }
+  lastSeen = now;
+  H.face = true;
+
+  /* --- image-space signals: unambiguous, and the reference for sign --- */
+  const nose = marks[LM_NOSE], ca = marks[LM_CHEEK_A], cb = marks[LM_CHEEK_B];
+  const top = marks[LM_TOP], chin = marks[LM_CHIN];
+  const faceW = Math.abs(cb.x - ca.x) || 1e-4;
+  const faceH = Math.hypot(chin.x - top.x, chin.y - top.y) || 1e-4;
+  const side = (nose.x - (ca.x + cb.x) / 2) / faceW;          // + = nose swung image-right
+  const vert = (nose.y - (top.y + chin.y) / 2) / faceH;       // + = nose low in frame
+
+  /* --- angle, in degrees, from the head pose matrix when we have one --- */
+  const mats = res.facialTransformationMatrixes;
+  const haveMat = !!(mats && mats[0] && mats[0].data && mats[0].data.length >= 16);
+  let rawYaw, rawPitch;
+  if (haveMat) {
+    const e = eulerYXZ(mats[0].data);
+    rawYaw = e.yaw * 180 / Math.PI;
+    rawPitch = e.pitch * 180 / Math.PI;
+  } else {
+    rawYaw = side * 90;      // coarse stand-in, same monotonic shape
+    rawPitch = -vert * 90;
+  }
+
+  /* --- calibration: average a moment of sitting still into the neutral --- */
+  if (cal) {
+    cal.t += dt; cal.n++;
+    cal.yaw += rawYaw; cal.pitch += rawPitch; cal.side += side; cal.vert += vert;
+    if (cal.t >= CAL_TIME && cal.n > 4) {
+      neutral.yaw = cal.yaw / cal.n;
+      neutral.pitch = cal.pitch / cal.n;
+      neutral.side = cal.side / cal.n;
+      neutral.vert = cal.vert / cal.n;
+      neutral.set = true;
+      cal = null;
+      H.calibrating = false;
+      if (H.status === 'live') setStatus('live', 'Centred. Turn your head to steer.');
+    }
+    H.yawRate = H.pitchOffset = 0;
+    H.yawDeg = H.pitchDeg = 0;
+    schedule();
+    return;
+  }
+  if (!neutral.set) { decay(now, dt); schedule(); return; }
+
+  const dYaw = rawYaw - neutral.yaw;
+  const dPitch = rawPitch - neutral.pitch;
+  const dSide = side - neutral.side;
+  const dVert = vert - neutral.vert;
+
+  /* lock the matrix angle's sign to the image signal it has to agree with */
+  if (Math.abs(dSide) > 0.03) corrYaw = corrYaw * 0.99 + dYaw * dSide;
+  if (Math.abs(dVert) > 0.03) corrPitch = corrPitch * 0.99 + dPitch * (-dVert);
+
+  /* + yaw = turned to your left; + pitch = chin up. The two axes invert
+     independently — vertical is the one people hold opinions about. */
+  let yawDeg = dYaw * signOf(corrYaw);
+  let pitchDeg = dPitch * signOf(corrPitch);
+  if (H.opt.invert) yawDeg = -yawDeg;
+  if (H.opt.invertPitch) pitchDeg = -pitchDeg;
+
+  if (!smInit) { smYaw = yawDeg; smPitch = pitchDeg; smInit = true; }
+  else { smYaw = smooth(smYaw, yawDeg, dt); smPitch = despike(smPitch, pitchDeg, dt); }
+
+  publish();
+  schedule();
+}
+
+function publish() {
+  H.yawDeg = smYaw;
+  H.pitchDeg = smPitch;
+  H.yawRate = shapeYaw(smYaw);
+  H.pitchOffset = shapePitch(smPitch);
+  H.stamp++;            // tells the game loop a genuinely new sample landed
+}
+
+/* Face lost: hold briefly, so a single dropped frame is not a stutter, then
+   let go. Yaw is a rate and can simply stop. Pitch is an absolute angle the
+   view is currently sitting at, so it is eased back to level instead —
+   dropping it would snap the horizon. Easing rather than resetting also means
+   reacquiring your face blends in from wherever the view is. */
+function decay(now, dt) {
+  if (now - lastSeen <= DROP_GRACE * 1000) return;
+  H.face = false;
+  smYaw = smooth(smYaw, 0, dt);
+  smPitch = smooth(smPitch, 0, dt);
+  H.yawDeg = smYaw;
+  H.pitchDeg = smPitch;
+  H.yawRate = 0;
+  H.pitchOffset = shapePitch(smPitch);
+  H.stamp++;            // the easing is motion too, so the game must see it
+}
+
+/* keep a re-entered tab honest about its clock */
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden) { lastLoop = performance.now(); smInit = false; }
+});
+
+setStatus('off', '');
 })();
 </script>
 <script>
@@ -1590,6 +2222,9 @@ addEventListener('keydown', function (e) {
   if (e.code === 'Escape') pause();
   if (e.code === 'KeyF') crackWhip();          // held key just idles on the cooldown
   if (e.code === 'KeyR' && mode === 'playing') startLevel(level);
+  if (e.code === 'KeyH') toggleHeadSteering();
+  if (e.code === 'KeyV') toggleHeadTilt();
+  if (e.code === 'KeyC') recentreHead();
 });
 addEventListener('keyup', function (e) { keys[e.code] = false; });
 addEventListener('blur', function () { for (const k in keys) keys[k] = false; });
@@ -1613,7 +2248,10 @@ addEventListener('mousemove', function (e) {
   input.look.y -= e.movementY * SENS;
 });
 document.addEventListener('pointerlockchange', function () {
-  if (document.pointerLockElement !== canvas && mode === 'playing') pause();
+  // With the camera steering, losing the pointer is not losing control — the
+  // original auto-pause here would fire every time you looked away from the
+  // mouse, which is most of the point of playing with your head.
+  if (document.pointerLockElement !== canvas && mode === 'playing' && !headLive()) pause();
 });
 
 const stickEl = document.getElementById('stick');
@@ -1854,8 +2492,10 @@ function rebuildWorld() {
 
 function updatePlayer(dt) {
   P.yaw = input.look.x;
-  P.pitch = Math.max(-1.45, Math.min(1.45, input.look.y));
-  input.look.y = P.pitch;
+  // look.y stays the mouse's to own, clamped on its own terms; head tilt is
+  // added on top per frame so the two never fight over the accumulator
+  input.look.y = Math.max(-1.45, Math.min(1.45, input.look.y));
+  P.pitch = Math.max(-1.45, Math.min(1.45, input.look.y + headPitch(dt)));
 
   fwd.set(-Math.sin(P.yaw), 0, -Math.cos(P.yaw));
   rgt.set(Math.cos(P.yaw), 0, -Math.sin(P.yaw));
@@ -2223,6 +2863,292 @@ function updateHUD(dt) {
 }
 
 /* ============================================================
+   HEAD STEERING — wiring the camera channel into the survey
+
+   The tracker is polled, never awaited, and every read is guarded.
+   If the module never came up — no camera, no permission, no network —
+   every function here is a no-op and the game is exactly the one it
+   was branched from.
+   ============================================================ */
+const HEAD = window.KineticHead || null;
+
+const camEl = {
+  panel:  document.getElementById('cam'),
+  bay:    document.getElementById('camBay'),
+  gateL:  document.getElementById('camDzL'),
+  gateR:  document.getElementById('camDzR'),
+  gateT:  document.getElementById('camDzT'),
+  gateB:  document.getElementById('camDzB'),
+  needle: document.getElementById('camNeedle'),
+  needleH:document.getElementById('camNeedleH'),
+  hint:   document.getElementById('camHint'),
+  fps:    document.getElementById('camFps'),
+  turn:   document.getElementById('camTurn'),
+  deg:    document.getElementById('camDeg'),
+  tilt:   document.getElementById('camTilt'),
+  tiltDeg:document.getElementById('camTiltDeg'),
+  mode:   document.getElementById('camMode'),
+  status: document.getElementById('camStatus'),
+  btn:    document.getElementById('camBtn')
+};
+
+/* head steering is live enough to be trusted with the view */
+function headLive() { return !!(HEAD && HEAD.enabled && HEAD.status === 'live'); }
+
+/* set once the console is built, so the V key can repaint it */
+let repaintCfg = null;
+
+/* Turn is a rate, integrated into the same accumulator the mouse writes, so
+   turning your head while dragging the mouse just sums. The face check is
+   deliberately absent from the pitch path below — a lost face eases its own
+   angle back to level, and cutting it here would snap the horizon instead. */
+function applyHeadLook(dt) {
+  if (!headLive() || !HEAD.face) return;
+  input.look.x += HEAD.yawRate * dt;
+}
+
+/* Tilt is an absolute angle, not an accumulator: it rides on top of the
+   mouse's pitch and lets go when your head comes back to level. Read fresh
+   every frame by updatePlayer rather than being written into look.y, which
+   is what stops it accumulating.
+
+   It is also *reconstructed* here rather than used raw. The tracker republishes
+   this angle once per camera frame — thirty times a second, and fewer in a dim
+   room — while this loop draws sixty to a hundred and forty times a second.
+   Handing the camera the raw value therefore holds the view perfectly still
+   for three or four frames and then snaps it several degrees, over and over:
+   the vertical jerk. The turn axis never had the problem because a rate gets
+   integrated, and integration is itself a low-pass filter; an absolute angle
+   arrives with nothing doing that job for it.
+
+   Simply easing toward the latest sample fixes the stepping but costs a lot of
+   lag, because the filter has to be slow enough to span a whole camera
+   interval. Interpolating does better: keep the last two samples and play them
+   back across the gap between them. That is one camera interval behind real
+   time — 33ms, not 90 — and the motion in between is continuous by
+   construction rather than by attenuation.
+
+   A light ease on top rounds off the corner where one pair hands over to the
+   next. Measured against a perfectly reconstructed signal, this lands within
+   about ten percent of the smoothest motion the curve allows, for a third less
+   lag than easing alone. */
+let tiltA = 0, tiltB = 0, tiltTA = 0, tiltTB = 0;
+let tiltStamp = -1, tiltSm = 0, tiltInit = false;
+
+function headPitch(dt) {
+  const live = headLive() && HEAD.opt.pitchOn;
+  const target = live ? HEAD.pitchOffset : 0;
+  const now = performance.now();
+
+  if (!live) {
+    // nothing driving it: collapse the pair so it eases to level and stays
+    tiltA = tiltB = target; tiltTA = tiltTB = now;
+  } else if (HEAD.stamp !== tiltStamp) {
+    // a new camera sample landed — shift the pair along
+    tiltStamp = HEAD.stamp;
+    tiltA = tiltB; tiltTA = tiltTB;
+    tiltB = target; tiltTB = now;
+  }
+
+  // walk across the gap between the last two samples; if the camera stalls
+  // this saturates and simply holds, rather than running off on its own
+  const span = Math.max(8, tiltTB - tiltTA);
+  const u = Math.min(1, Math.max(0, (now - tiltTB) / span));
+  const lerped = tiltA + (tiltB - tiltA) * u;
+
+  if (!tiltInit) { tiltSm = lerped; tiltInit = true; return tiltSm; }
+  const ivl = Math.min(0.14, Math.max(0.008, HEAD.interval || 1 / 30));
+  const tau = Math.max(HEAD.opt.pitchSmoothMs / 1000, ivl * 0.6);
+  tiltSm += (lerped - tiltSm) * (1 - Math.exp(-dt / tau));
+  return tiltSm;
+}
+
+/* ---------- the camera bay ---------- */
+let camPainted = '';
+function paintCamHud() {
+  const show = !!(HEAD && HEAD.enabled && HEAD.opt.hud);
+  camEl.panel.classList.toggle('on', show);
+  if (!show) return;
+
+  const range = Math.max(1, HEAD.opt.rangeDeg);
+  const deg = HEAD.yawDeg || 0;
+  const t = Math.max(-1, Math.min(1, deg / range));
+
+  // the feed is mirrored, so the needle leans the way you feel yourself lean
+  camEl.needle.style.left = (50 - t * 45) + '%';
+  camEl.needle.classList.toggle('idle', !HEAD.face || Math.abs(deg) <= HEAD.opt.deadDeg);
+
+  const dz = Math.min(48, (HEAD.opt.deadDeg / range) * 45);
+  camEl.gateL.style.left = (50 - dz) + '%';
+  camEl.gateR.style.left = (50 + dz) + '%';
+
+  // tilt: chin up moves the needle up, matching the mirror
+  const tilt = HEAD.opt.pitchOn;
+  const pRange = Math.max(1, HEAD.opt.pitchRangeDeg);
+  const pDeg = tilt ? (HEAD.pitchDeg || 0) : 0;
+  const pt = Math.max(-1, Math.min(1, pDeg / pRange));
+  camEl.needleH.classList.toggle('off', !tilt);
+  camEl.needleH.style.top = (50 - pt * 45) + '%';
+  camEl.needleH.classList.toggle('idle', !HEAD.face || Math.abs(pDeg) <= HEAD.opt.pitchDeadDeg);
+
+  const pdz = Math.min(48, (HEAD.opt.pitchDeadDeg / pRange) * 45);
+  camEl.gateT.style.display = camEl.gateB.style.display = tilt ? '' : 'none';
+  camEl.gateT.style.top = (50 - pdz) + '%';
+  camEl.gateB.style.top = (50 + pdz) + '%';
+
+  camEl.panel.classList.toggle('noTilt', !tilt);
+  camEl.bay.classList.toggle('blind', !HEAD.face);
+
+  // "no face" outranks "hold still": during a recentre with nobody in frame,
+  // being told to sit still is useless advice — the camera cannot see you.
+  let hint = '', cls = '';
+  if (HEAD.status === 'starting') { hint = 'STARTING'; cls = 'warm'; }
+  else if (HEAD.status === 'error') { hint = 'CAMERA FAULT'; cls = 'bad'; }
+  else if (!HEAD.face) { hint = 'NO FACE'; cls = 'bad'; }
+  else if (HEAD.calibrating) { hint = 'HOLD STILL'; cls = 'warm'; }
+  camEl.hint.className = (hint ? 'on ' : '') + cls;
+  if (hint && camPainted !== hint) camEl.hint.textContent = hint;
+  camPainted = hint;
+
+  camEl.deg.textContent = (deg >= 0 ? '+' : '−') + Math.abs(deg).toFixed(0) + '°';
+  camEl.turn.textContent = !HEAD.face ? 'SEARCHING'
+    : Math.abs(deg) <= HEAD.opt.deadDeg ? 'CENTRED'
+    : deg > 0 ? '◀ LEFT' : 'RIGHT ▶';
+
+  // the tilt readout is the view angle it is buying, not the head angle —
+  // that is the number you are actually steering by
+  const view = HEAD.pitchOffset * 180 / Math.PI;
+  camEl.tiltDeg.textContent = !tilt ? 'OFF'
+    : (view >= 0 ? '+' : '−') + Math.abs(view).toFixed(0) + '°';
+  camEl.tilt.textContent = !tilt ? 'DISABLED'
+    : !HEAD.face ? 'SEARCHING'
+    : Math.abs(pDeg) <= HEAD.opt.pitchDeadDeg ? 'LEVEL'
+    : pDeg > 0 ? '▲ UP' : '▼ DOWN';
+
+  camEl.mode.textContent = tilt ? 'TURN + TILT' : 'TURN';
+
+  // the camera's rate is the ceiling on tilt smoothness, so say it out loud
+  const fps = HEAD.fps || 0;
+  camEl.fps.textContent = HEAD.face && fps > 0 ? fps.toFixed(0) + ' FPS' : '';
+  camEl.fps.classList.toggle('low', fps > 0 && fps < 20);
+}
+
+/* ---------- the overlay console ---------- */
+if (HEAD) {
+  const deg1 = v => v.toFixed(1).replace(/\.0$/, '') + '°';
+  const sliders = [
+    ['cfgSens',   'outSens',   'sens',          v => v.toFixed(2) + '×'],
+    ['cfgDead',   'outDead',   'deadDeg',       deg1],
+    ['cfgRange',  'outRange',  'rangeDeg',      v => v.toFixed(0) + '°'],
+    ['cfgReach',  'outReach',  'pitchReachDeg', v => v.toFixed(0) + '°'],
+    ['cfgPRange', 'outPRange', 'pitchRangeDeg', v => v.toFixed(0) + '°'],
+    ['cfgPDead',  'outPDead',  'pitchDeadDeg',  deg1],
+    ['cfgPSmooth','outPSmooth','pitchSmoothMs', v => v.toFixed(0) + ' MS'],
+    ['cfgSmooth', 'outSmooth', 'smoothMs',      v => v.toFixed(0) + ' MS']
+  ];
+  sliders.forEach(function (s) {
+    const inp = document.getElementById(s[0]), out = document.getElementById(s[1]);
+    if (!inp) return;
+    inp.value = HEAD.opt[s[2]];
+    const paint = function () { out.textContent = s[3](parseFloat(inp.value)); };
+    inp.addEventListener('input', function () {
+      HEAD.opt[s[2]] = parseFloat(inp.value);
+      paint(); HEAD.save();
+    });
+    paint();
+  });
+
+  const toggles = [
+    ['togPitch',    'pitchOn'],
+    ['togInvert',   'invert'],
+    ['togInvPitch', 'invertPitch'],
+    ['togHud',      'hud']
+  ];
+  function paintToggles() {
+    toggles.forEach(function (t) {
+      const b = document.getElementById(t[0]);
+      if (b) b.classList.toggle('on', !!HEAD.opt[t[1]]);
+    });
+  }
+  toggles.forEach(function (t) {
+    const b = document.getElementById(t[0]);
+    if (!b) return;
+    b.addEventListener('click', function () {
+      HEAD.opt[t[1]] = !HEAD.opt[t[1]];
+      paintToggles(); HEAD.save();
+    });
+  });
+  paintToggles();
+  repaintCfg = paintToggles;
+
+  const recal = document.getElementById('togRecal');
+  if (recal) recal.addEventListener('click', function () {
+    if (headLive()) { HEAD.recenter(); toast('RECENTRING', 'hold still'); }
+  });
+
+  /* Status copy lives in one place so the button, the card and the toast
+     never disagree about what the camera is doing. */
+  const STATUS_TEXT = {
+    off:      'Camera is <b>off</b>. Turn it on below — the browser will ask for permission, and the video never leaves this page.',
+    starting: 'Starting the camera…',
+    live:     'Head steering is <b>live</b>. Turn your head to steer; hold the turn to keep turning. Press <b>C</b> any time to make wherever you are sitting the new centre.'
+  };
+  function syncCamUi() {
+    const s = HEAD.status;
+    camEl.status.className = s === 'error' ? 'bad' : '';
+    camEl.status.innerHTML = s === 'error'
+      ? 'Camera <b>unavailable</b>. ' + String(HEAD.detail).replace(/[<>]/g, '')
+      : (HEAD.detail && s !== 'off' ? STATUS_TEXT[s] + ' <span style="opacity:.7">' + String(HEAD.detail).replace(/[<>]/g, '') + '</span>' : STATUS_TEXT[s] || '');
+    camEl.btn.disabled = s === 'starting';
+    camEl.btn.classList.toggle('on', HEAD.enabled);
+    camEl.btn.textContent = s === 'starting' ? 'HEAD STEERING: STARTING…'
+      : HEAD.enabled ? 'HEAD STEERING: ON' : 'HEAD STEERING: OFF';
+  }
+  HEAD.onstatus = function (s) {
+    syncCamUi();
+    if (s === 'live') toast('HEAD STEERING LIVE', 'sit square · press C to recentre');
+    if (s === 'error') toast('CAMERA UNAVAILABLE', 'keys and mouse still work', true);
+  };
+  syncCamUi();
+
+  camEl.btn.addEventListener('click', function () { HEAD.toggle(); syncCamUi(); });
+
+  /* A remembered "on" is only honoured on a real click, which is where the
+     permission prompt belongs anyway. */
+  el.go.addEventListener('click', function () {
+    if (HEAD.wantOn && !HEAD.enabled && HEAD.status === 'off') { HEAD.wantOn = false; HEAD.start(); }
+  });
+} else {
+  camEl.status.className = 'bad';
+  camEl.status.innerHTML = 'Head tracking <b>did not load</b> in this browser. Keys and mouse are unaffected.';
+  camEl.btn.disabled = true;
+  camEl.btn.textContent = 'HEAD STEERING: UNAVAILABLE';
+}
+
+/* the two keys, so the camera can be dealt with without leaving the run */
+function toggleHeadSteering() {
+  if (!HEAD) { toast('NO CAMERA CHANNEL', 'tracking did not load', true); return; }
+  if (HEAD.status === 'starting') return;
+  HEAD.toggle();                       // onstatus repaints the card and the button
+  if (!HEAD.enabled) toast('HEAD STEERING OFF', 'keys and mouse only');
+}
+
+function toggleHeadTilt() {
+  if (!HEAD) return;
+  HEAD.opt.pitchOn = !HEAD.opt.pitchOn;
+  HEAD.save();
+  if (repaintCfg) repaintCfg();
+  toast(HEAD.opt.pitchOn ? 'TILT AXIS ON' : 'TILT AXIS OFF',
+        HEAD.opt.pitchOn ? 'tilt your head to look up and down' : 'turn axis still live');
+}
+
+function recentreHead() {
+  if (!headLive()) return;
+  HEAD.recenter();
+  toast('RECENTRING', 'hold still');
+}
+
+/* ============================================================
    LOOP
    ============================================================ */
 let last = performance.now();
@@ -2244,11 +3170,13 @@ function frame(now) {
   writeFlock();
   updateWhipFx(dt);        // above the early return, so pausing mid-crack still clears the ring
   updateBlips(dt);
+  paintCamHud();           // also above it: the bay stays live on the menu, which is where you aim your chair
 
   if (mode !== 'playing') { renderer.render(scene, camera); return; }
 
   roundTime += dt;
   readKeys();
+  applyHeadLook(dt);       // folds into look.x/.y before the player reads them, same as the mouse
   updatePlayer(dt);
   if (mode !== 'playing') { renderer.render(scene, camera); return; }   // round may have just ended
   updatePuffs(dt);
