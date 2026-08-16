@@ -1,7 +1,16 @@
 # KINETIC
 
-A branch of the grass game (`../Grass/touch-grass.html`) with the webcam wired in as a
-second controller. Everything the original did, it still does — this only adds a channel.
+The `kinetic` branch of the grass repo: `touch-grass.html` from `main`, with the webcam
+wired in as a second controller. Everything the original did, it still does — this only
+adds a channel. It lives on a branch because the head movements are the experiment.
+
+```bash
+git diff main..kinetic -- index.html    # everything head tracking changed
+git switch main                         # back to the original game
+```
+
+Git tracks `touch-grass.html → index.html` as a rename at 94% similarity, so the diff
+against `main` stays readable rather than showing the file as new.
 
 **Your head is the look stick.** Turn it left or right to steer; tilt it up or down to aim
 vertically. The keyboard is untouched.

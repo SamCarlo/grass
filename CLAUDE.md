@@ -4,9 +4,23 @@ Guidance for Claude Code when working in `games/kinetic/`.
 
 ## What this is
 
-A branch of `../Grass/touch-grass.html` — the same endless grass survey — with webcam head
-tracking added as a second controller. All original keyboard/mouse/touch controls are
-preserved unchanged; head steering is purely additive.
+The `kinetic` branch of the grass repo (`github.com/SamCarlo/grass`, private). It is
+`touch-grass.html` from `main` — the same endless grass survey — with webcam head tracking
+added as a second controller. All original keyboard/mouse/touch controls are preserved
+unchanged; head steering is purely additive.
+
+**This is an experiment and belongs on the branch.** Do not merge it to `main` without
+being asked; `main` is the plain games, and the head tracking is what is being tried out.
+
+The game file is `touch-grass.html` renamed to `index.html` (so `serve.py` serves it at
+`/`). Git sees the rename at 94% similarity, which is what keeps `git diff main..kinetic`
+readable — **do not rename it again**, or the lineage stops being legible.
+
+`descent.html` is inherited from `main` and is not part of this experiment; leave it alone.
+
+Checked out as a git worktree at `games/kinetic`, alongside `main` at `games/Grass`. Both
+are the same repository, so a commit here is a commit there. `git worktree list` shows the
+pair.
 
 See `README.md` for controls, tuning and the tracking design.
 
