@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>TOUCH GRASS — surface survey</title>
+<title>TOUCH GRASS — third person</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -259,7 +259,6 @@
   <div id="fuelRow"><span>THRUST</span><span id="ground">CONTACT</span></div>
 </div>
 
-<div id="ret"><span></span></div>
 <div id="cowMark"><span id="cowArrow">▲</span><span id="cowDist">0 M</span></div>
 <div id="toasts"></div>
 
@@ -272,12 +271,12 @@
 
 <div id="ov">
   <div id="card">
-    <div id="kicker">Survey unit 7 · vegetation contact log</div>
+    <div id="kicker">Survey unit 7 · third-person field log</div>
     <h1 id="headline">TOUCH<em>GRASS</em></h1>
     <p id="blurb">The site has no edges. Terrain is generated around you as you travel, so you can pick a direction and keep going — nothing out there is closer than anything else.<br><br>Only the green is safe. <b style="color:var(--magma);font-weight:600">Every bare surface on this rock is molten and one touch burns a life</b> — you get three per level. You score by putting boots on green, and somewhere out there a very small cow is floating. It grows as your log fills. Reach the level's target and it turns solid: fly up, touch it, round over. The clock is your score.<br><br>The site also has <b style="color:var(--bone);font-weight:600">flying cattle</b> — small herds drifting above the grass, holding formation. <b style="color:var(--phosphor);font-weight:600">Crack the whip and the ones in earshot bolt straight away from you</b>, climbing as they run. Put one into the floating cow and it is worth 100 toward the target, so stand where "away from me" points at the beacon. The bigger the floating cow gets, the easier it is to hit.<br><br>Moving is fast on its own — <b style="color:var(--phosphor);font-weight:600">hold ski and the hills stop slowing you down</b>, so momentum keeps building. Longer you're airborne, more the next landing is worth.</p>
     <div id="keys">
       <div>W A S D</div><div>Move — already quick, and it builds up</div>
-      <div>MOUSE</div><div>Look around</div>
+      <div>MOUSE</div><div>Orbit the camera — you run where it faces</div>
       <div>SHIFT</div><div>Hold to ski — drops the friction, hills become speed</div>
       <div>SPACE</div><div>Hold for thruster — how you reach the cow</div>
       <div>F / CLICK</div><div>Crack the whip — spooks the herd away from you</div>
@@ -483,7 +482,7 @@ const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(COL.fog.getHex(), CFG.fogNear, CFG.fogFar);
 scene.background = COL.fog.clone();
 
-const camera = new THREE.PerspectiveCamera(78, window.innerWidth / window.innerHeight, 0.1, 3000);
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 3000);
 const SUN = new THREE.Vector3(0.42, 0.72, 0.28).normalize();
 
 const sun = new THREE.DirectionalLight(0xfff0d2, 1.15);
@@ -1835,8 +1834,9 @@ let DROP = [0, 0];
 function spawnPlayer() {
   P.pos.set(DROP[0], terrainHeight(DROP[0], DROP[1]) + 0.4, DROP[1]);
   P.vel.set(0, 0, 0);
-  P.yaw = 0; P.pitch = -0.05;
-  input.look.x = 0; input.look.y = -0.05;
+  P.yaw = 0; P.pitch = -0.22;
+  input.look.x = 0; input.look.y = -0.22;
+  HERO.face = 0; HERO.bank = 0;
   P.fuel = CFG.fuelMax; P.mult = 1; P.airtime = 0; P.grounded = false;
   P.grace = 1.4;
 }
@@ -1854,7 +1854,7 @@ function rebuildWorld() {
 
 function updatePlayer(dt) {
   P.yaw = input.look.x;
-  P.pitch = Math.max(-1.45, Math.min(1.45, input.look.y));
+  P.pitch = Math.max(-1.25, Math.min(0.55, input.look.y));
   input.look.y = P.pitch;
 
   fwd.set(-Math.sin(P.yaw), 0, -Math.cos(P.yaw));
@@ -1994,6 +1994,272 @@ function onLand(impact, skiing) {
     }
   }
   P.airtime = 0;
+}
+
+
+/* ============================================================
+   THE SURVEYOR
+   The third-person body. Pure presentation: nothing here changes how the player
+   moves, scores or burns — P.pos is still the boot soles, and physics never reads
+   any of this back. Built facing -Z so rotation.y shares the camera's yaw.
+   ============================================================ */
+const SUIT = {
+  suit:  new THREE.MeshLambertMaterial({ color: 0xd9d2bd }),
+  trim:  new THREE.MeshLambertMaterial({ color: 0xe8ab4f }),
+  dark:  new THREE.MeshLambertMaterial({ color: 0x2b2e2a }),
+  pack:  new THREE.MeshLambertMaterial({ color: 0x565c52 }),
+  visor: new THREE.MeshLambertMaterial({ color: 0x1b2616, emissive: 0x4d7a1c, emissiveIntensity: 0.55 }),
+  flame: new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0.85,
+                                       depthWrite: false, blending: THREE.AdditiveBlending })
+};
+
+const HERO = (function () {
+  const root = new THREE.Group();
+  root.rotation.order = 'YXZ';
+  const box = function (w, h, d, mat, x, y, z, parent) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x, y, z); parent.add(m); return m;
+  };
+  const ball = function (r, mat, x, y, z, parent) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), mat);
+    m.position.set(x, y, z); parent.add(m); return m;
+  };
+  // a limb is a pivot at the joint with the segment hanging straight down from it
+  const limb = function (rTop, rBot, len, mat, x, y, z, parent) {
+    const pivot = new THREE.Group();
+    pivot.position.set(x, y, z);
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, len, 8), mat);
+    m.position.y = -len / 2;
+    pivot.add(m); parent.add(pivot);
+    return pivot;
+  };
+
+  const hips = new THREE.Group(); hips.position.y = 0.92; root.add(hips);
+  const torso = new THREE.Group(); hips.add(torso);          // leans from the hips
+
+  box(0.46, 0.58, 0.30, SUIT.suit, 0, 0.33, 0, torso);
+  box(0.47, 0.07, 0.31, SUIT.trim, 0, 0.10, 0, torso);       // belt
+  box(0.16, 0.10, 0.03, SUIT.trim, 0.10, 0.48, -0.16, torso); // chest patch
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.07, 12), SUIT.dark);
+  neck.position.y = 0.64; torso.add(neck);
+  ball(0.21, SUIT.suit, 0, 0.82, 0, torso);
+  ball(0.165, SUIT.visor, 0, 0.83, -0.10, torso).scale.set(1.0, 0.70, 0.62);
+
+  // jetpack, with a flame cone under each nozzle
+  box(0.36, 0.48, 0.20, SUIT.pack, 0, 0.36, 0.25, torso);
+  box(0.37, 0.05, 0.21, SUIT.trim, 0, 0.52, 0.25, torso);
+  const flames = [];
+  const flameGeo = new THREE.ConeGeometry(0.075, 0.55, 8, 1, true);
+  flameGeo.rotateX(Math.PI);
+  flameGeo.translate(0, -0.275, 0);
+  for (const sx of [-0.1, 0.1]) {
+    const nz = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.065, 0.10, 8), SUIT.dark);
+    nz.position.set(sx, 0.08, 0.27); torso.add(nz);
+    const f = new THREE.Mesh(flameGeo, SUIT.flame);
+    f.position.set(sx, 0.03, 0.27); f.visible = false; torso.add(f);
+    flames.push(f);
+  }
+
+  const arms = [], elbows = [], gloves = [];
+  for (const sx of [-1, 1]) {
+    const sh = limb(0.07, 0.06, 0.34, SUIT.suit, sx * 0.30, 0.56, 0, torso);
+    const el = limb(0.06, 0.055, 0.30, SUIT.suit, 0, -0.34, 0, sh);
+    gloves.push(ball(0.07, SUIT.dark, 0, -0.33, 0, el));
+    arms.push(sh); elbows.push(el);
+  }
+
+  const thighs = [], knees = [];
+  for (const sx of [-1, 1]) {
+    const th = limb(0.09, 0.08, 0.44, SUIT.suit, sx * 0.12, 0, 0, hips);
+    const kn = limb(0.075, 0.07, 0.40, SUIT.suit, 0, -0.44, 0, th);
+    box(0.15, 0.12, 0.27, SUIT.dark, 0, -0.44, -0.04, kn);
+    thighs.push(th); knees.push(kn);
+  }
+
+  scene.add(root);
+  return { root, hips, torso, arms, elbows, gloves, thighs, knees, flames,
+           face: 0, bank: 0, phase: 0, drop: 0, lean: 0 };
+})();
+
+/* The whip only exists while it is being cracked: a line that leaves the right glove,
+   follows the arm through the overhead swing and snaps out ahead. The spook itself is
+   still the radial check in crackWhip() — this is just what it looks like. */
+const WHIP_PTS = 14;
+const whipLine = (function () {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(WHIP_PTS * 3), 3));
+  const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0x4a3120 }));
+  l.frustumCulled = false; l.visible = false;
+  scene.add(l);
+  return l;
+})();
+
+/* A soft contact shadow. With the camera behind you, height off the ground is hard to
+   judge — this is what makes a thruster landing on a narrow patch readable. */
+const heroShadow = (function () {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d');
+  const gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(0,0,0,0.9)'); gr.addColorStop(0.55, 'rgba(0,0,0,0.5)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
+  const geo = new THREE.PlaneGeometry(1.3, 1.3);
+  geo.rotateX(-Math.PI / 2);
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -4, fog: true }));
+  scene.add(m);
+  return m;
+})();
+
+const _hUp = new THREE.Vector3(0, 1, 0), _hN = new THREE.Vector3(), _hW = new THREE.Vector3();
+
+function wrapAngle(a) {
+  while (a > Math.PI) a -= 6.283185;
+  while (a < -Math.PI) a += 6.283185;
+  return a;
+}
+
+function updateSurveyor(dt, speed) {
+  const H = HERO;
+  const air = !P.grounded;
+  const skiing = input.ski && !air;
+  const jetting = input.jet && P.fuel > 0.5 && mode === 'playing';
+
+  // face where you are going; standing still, face where you are pushing
+  let want = H.face;
+  if (speed > 1.2) want = Math.atan2(-P.vel.x, -P.vel.z);
+  else if (wish.lengthSq() > 0.01) want = Math.atan2(-wish.x, -wish.z);
+  const turn = wrapAngle(want - H.face) * Math.min(1, 10 * dt);
+  H.face = wrapAngle(H.face + turn);
+  const yawRate = dt > 0 ? turn / dt : 0;
+  const tBank = air ? 0 : Math.max(-0.32, Math.min(0.32, yawRate * 0.045 * Math.min(1, speed / 8)));
+  H.bank += (tBank - H.bank) * Math.min(1, 6 * dt);
+
+  let thL, thR, knL, knR, arL, arR, elL, elR, spread, lean, drop;
+  if (air) {
+    const tuck = jetting ? 0.25 : 1;
+    thL = 0.40 * tuck; thR = 0.10 * tuck; knL = -0.75 * tuck; knR = -0.35 * tuck;
+    arL = arR = 0.25; elL = elR = 0.4; spread = jetting ? 0.35 : 0.75;
+    lean = -Math.min(0.30, speed * 0.008); drop = 0;
+  } else if (skiing) {
+    thL = 0.85; thR = 0.62; knL = -1.15; knR = -1.00;
+    arL = arR = -0.55; elL = elR = 0.25; spread = 0.22;
+    lean = -0.45; drop = 0.16;
+  } else {
+    H.phase += dt * Math.min(15, speed * 0.9);
+    const amp = Math.min(0.85, speed / 9);
+    const s = Math.sin(H.phase), c = Math.cos(H.phase);
+    thL = s * amp; thR = -s * amp;
+    knL = -(0.08 + Math.max(0, c) * amp * 1.3);
+    knR = -(0.08 + Math.max(0, -c) * amp * 1.3);
+    arL = -s * amp * 0.8; arR = s * amp * 0.8;
+    elL = elR = 0.25 + amp * 0.55; spread = 0.08;
+    lean = -Math.min(0.32, speed * 0.016);
+    drop = Math.abs(c) * 0.05 * amp;
+  }
+
+  const k = Math.min(1, 12 * dt);
+  const ease = function (obj, prop, v) { obj[prop] += (v - obj[prop]) * k; };
+  ease(H.thighs[0].rotation, 'x', thL); ease(H.thighs[1].rotation, 'x', thR);
+  ease(H.knees[0].rotation, 'x', knL);  ease(H.knees[1].rotation, 'x', knR);
+  ease(H.arms[0].rotation, 'x', arL);   ease(H.arms[1].rotation, 'x', arR);
+  ease(H.arms[0].rotation, 'z', -spread); ease(H.arms[1].rotation, 'z', spread);
+  ease(H.elbows[0].rotation, 'x', elL); ease(H.elbows[1].rotation, 'x', elR);
+  H.lean += (lean - H.lean) * k;
+  H.drop += (drop - H.drop) * k;
+
+  // the crack overrides the right arm outright: up over the helmet, then down and out
+  let armA = null;
+  if (WHIP.fx > 0) {
+    const t = WHIP.fx;
+    armA = t < 0.25 ? 2.9 * (t / 0.25) : 2.9 - 2.1 * Math.min(1, (t - 0.25) / 0.18);
+    H.arms[1].rotation.x = armA;
+    H.arms[1].rotation.z = 0.12;
+    H.elbows[1].rotation.x = 0.15;
+  }
+
+  H.root.position.copy(P.pos);
+  H.root.rotation.set(0, H.face, H.bank);
+  H.hips.position.y = 0.92 - H.drop;
+  H.torso.rotation.x = H.lean;
+
+  for (const f of H.flames) {
+    f.visible = jetting;
+    if (jetting) f.scale.set(1, 0.75 + Math.random() * 0.55, 1);
+  }
+
+  if (armA !== null) {
+    H.root.updateMatrixWorld(true);
+    H.gloves[1].getWorldPosition(_hW);
+    const fx = -Math.sin(H.face), fz = -Math.cos(H.face);
+    const t = WHIP.fx, arr = whipLine.geometry.attributes.position.array;
+    const base = armA + H.lean;           // arm angle from straight down, forward-positive
+    const seg = 3.2 / (WHIP_PTS - 1);
+    let x = _hW.x, y = _hW.y, z = _hW.z;
+    for (let i = 0; i < WHIP_PTS; i++) {
+      arr[i * 3] = x; arr[i * 3 + 1] = y; arr[i * 3 + 2] = z;
+      // the lash trails the arm and then overtakes it, which reads as the snap
+      const s = i / (WHIP_PTS - 1);
+      const a = base + (t < 0.3 ? 0.9 : -0.9 * Math.sin(Math.PI * Math.min(1, (t - 0.3) / 0.5))) * s * 1.6;
+      const fwd = Math.sin(a) * seg, up = -Math.cos(a) * seg;
+      x += fx * fwd; y += up; z += fz * fwd;
+    }
+    whipLine.geometry.attributes.position.needsUpdate = true;
+    whipLine.visible = true;
+  } else {
+    whipLine.visible = false;
+  }
+
+  const gy = terrainHeight(P.pos.x, P.pos.z);
+  const alt = Math.max(0, P.pos.y - gy);
+  heroShadow.position.set(P.pos.x, gy + 0.10, P.pos.z);
+  terrainNormal(P.pos.x, P.pos.z, _hN);
+  heroShadow.quaternion.setFromUnitVectors(_hUp, _hN);
+  heroShadow.scale.setScalar(1 + alt * 0.035);
+  heroShadow.material.opacity = 0.55 * Math.max(0, 1 - alt / 28);
+}
+
+/* ============================================================
+   CHASE CAMERA
+   Orbits a pivot just above the helmet, so the surveyor sits a little below centre
+   and the ground ahead stays in view. The boom is marched back from the pivot and
+   cut short at the first sample under the terrain, so a hill behind you pulls the
+   camera in rather than letting it look out through the inside of the dune.
+   ============================================================ */
+const CAM = { dist: 5.4, pivotY: 2.15, min: 0.6, clear: 0.45 };
+const camState = { dist: CAM.dist, pivotY: 0, init: false };
+const _cdir = new THREE.Vector3();
+
+function updateCamera(dt, speed, snap) {
+  const cp = Math.cos(P.pitch);
+  _cdir.set(-Math.sin(P.yaw) * cp, Math.sin(P.pitch), -Math.cos(P.yaw) * cp);
+
+  // vertical only is smoothed, to soak up the ground snap; a respawn jumps straight there
+  const pyT = P.pos.y + CAM.pivotY;
+  if (snap || !camState.init || Math.abs(camState.pivotY - pyT) > 6) camState.pivotY = pyT;
+  else camState.pivotY += (pyT - camState.pivotY) * Math.min(1, 16 * dt);
+  camState.init = true;
+
+  const px = P.pos.x, py = camState.pivotY, pz = P.pos.z;
+  const want = CAM.dist + Math.min(2.6, speed * 0.055);
+  let reach = want;
+  for (let t = 0.3; t <= want + 1e-3; t += 0.3) {
+    const x = px - _cdir.x * t, y = py - _cdir.y * t, z = pz - _cdir.z * t;
+    if (y < terrainHeight(x, z) + CAM.clear) { reach = Math.max(CAM.min, t - 0.3); break; }
+  }
+  // pull in instantly (never clip), let back out gently (never pop)
+  if (snap || reach < camState.dist) camState.dist = reach;
+  else camState.dist += (reach - camState.dist) * Math.min(1, 3 * dt);
+
+  const d = camState.dist;
+  camera.position.set(px - _cdir.x * d, py - _cdir.y * d, pz - _cdir.z * d);
+  const floor = terrainHeight(camera.position.x, camera.position.z) + 0.3;
+  if (camera.position.y < floor) camera.position.y = floor;
+  camera.rotation.order = 'YXZ';
+  camera.rotation.set(P.pitch, P.yaw, 0);
+
+  // a boom squeezed right down would put the lens inside the helmet
+  HERO.root.visible = d > 0.9;
 }
 
 const burnEl = document.getElementById('burn');
@@ -2263,19 +2529,11 @@ function frame(now) {
 
   const speed = Math.hypot(P.vel.x, P.vel.z);
 
-  P.bob += dt * Math.min(speed, 14) * 1.7;
-  const bobY = (P.grounded && !input.ski && speed > 1.5) ? Math.sin(P.bob) * 0.045 : 0;
-  camera.position.set(P.pos.x, P.pos.y + CFG.eye + bobY, P.pos.z);
+  updateSurveyor(dt, speed);
+  updateCamera(dt, speed, false);
   skyRig.position.set(P.pos.x, 0, P.pos.z);
 
-  const lateral = P.vel.x * Math.cos(P.yaw) - P.vel.z * Math.sin(P.yaw);
-  const targetRoll = -Math.max(-1, Math.min(1, lateral / 26)) * 0.075;
-  P.roll += (targetRoll - P.roll) * Math.min(1, 5 * dt);
-
-  camera.rotation.order = 'YXZ';
-  camera.rotation.set(P.pitch, P.yaw, P.roll);
-
-  const targetFov = 78 + Math.min(18, speed * 0.42);
+  const targetFov = 70 + Math.min(16, speed * 0.36);
   camera.fov += (targetFov - camera.fov) * Math.min(1, 4 * dt);
   camera.updateProjectionMatrix();
 
@@ -2345,6 +2603,8 @@ function startLevel(lv) {
   placeCow(lv);
   resetFlock();                 // needs COW.baseY, so it has to follow placeCow
   redrawTrail();
+  updateSurveyor(0, 0);
+  updateCamera(0, 0, true);
 
   el.lvl.textContent = lv;
   el.goalTxt.textContent = goal.toLocaleString();
@@ -2439,8 +2699,8 @@ function boot() {
   resetFlock();
   writeFlock();
   redrawTrail();
-  camera.position.set(P.pos.x, P.pos.y + CFG.eye, P.pos.z);
-  camera.rotation.order = 'YXZ';
+  updateSurveyor(0, 0);
+  updateCamera(0, 0, true);
   skyRig.position.set(P.pos.x, 0, P.pos.z);
 
   el.goalTxt.textContent = goalFor(1).toLocaleString();
